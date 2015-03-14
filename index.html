@@ -11,13 +11,13 @@ function makeDraggable(d, onDrop) {
 	d.mousedown(function (e) {
 		e.preventDefault()
 		var pos = d.offset()
-		var oldParent = d.parent()
-		$('body').append(d)
-		d.offset(pos)
 		var offset = {
 			left : e.pageX - pos.left,
 			top : e.pageY - pos.top
 		}
+		var oldZ = d.css('z-index')
+		console.log("oldZ", oldZ)
+		d.css('z-index', 1000000)
 		var mousemove = function (e) {
 			d.offset({
 				left : e.pageX - offset.left,
@@ -26,16 +26,14 @@ function makeDraggable(d, onDrop) {
 		}
 		var mouseup = function (e) {
 			$(document).off('mousemove', mousemove).off('mouseup', mouseup)
-			pos = d.offset()
-			oldParent.append(d)
-			d.offset(pos)
+			d.css('z-index', oldZ)
 			onDrop(e.pageX, e.pageY)
 		}
 		$(document).on('mousemove', mousemove).on('mouseup', mouseup)
 	})
 }
 
-function drawChessBoard(fen, size, onMove) {
+function drawChessBoard(fen, size, onMove, suggestedMove) {
 	fen = fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
 	fen = fen.split(/ /)[0]
 	fen = fen.replace(/\d/g, function (x) { return new Array(1 * x + 1).join(' ') }).replace(/\//g, '')
@@ -87,6 +85,11 @@ function drawChessBoard(fen, size, onMove) {
 				float : 'left',
 				background : (x + y) % 2 == 0 ? whiteSquareColor : blackSquareColor
 			})
+
+			if (suggestedMove && suggestedMove.indexOf(String.fromCharCode('a'.charCodeAt(0) + x) + (8 - y)) >= 0) {
+				square.css({ background : 'red' })
+			}
+
 			var piece = pieces[fen[y * 8 + x]]
 			if (piece) {
 				var pieceDiv
@@ -116,7 +119,8 @@ function drawChessBoard(fen, size, onMove) {
 						var pos = d.offset()
 						x = Math.floor((x - pos.left) / squareSize)
 						y = Math.floor((y - pos.top) / squareSize)
-						onMove(from + getPos(x, y))
+						if (onMove)
+							onMove(from + getPos(x, y))
 					})
 				})();
 				square.append(pieceDiv)
@@ -136,6 +140,10 @@ function drawChessGame(fen) {
 			fen = applyMove(fen, move) || fen
 			redrawBoard()
 		}).css('box-shadow', '2px 2px 15px rgba(0, 0, 0, 0.5)'))
+
+		_.each(suggestMoves(fen, 2000), function (move) {
+			d.append(drawChessBoard(fen, 150, null, move.move).css({ float  : 'left', margin : '20px' }).append($('<div/>').text('score: ' + move.score)))
+		})
 	}
 	redrawBoard()
 
